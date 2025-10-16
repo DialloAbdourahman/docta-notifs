@@ -5,20 +5,22 @@ dotenv.config();
 interface Config {
   nodeEnv: string;
   mongoUri: string;
-  // awsAccessKey: string;
-  // awsSecretKey: string;
-  // awsS3Bucket: string;
-  // awsS3Region: string;
   rabbitmqHost: string;
+  awsSesHost: string;
+  awsSesPort: number;
+  awsSesUsername: string;
+  awsSesPassword: string;
+  awsSesSenderEmail: string;
 }
 
 export const config: Config = {
   nodeEnv: String(process.env.NODE_ENV),
   mongoUri: String(process.env.MONGO_URI),
-
-  // awsAccessKey: String(process.env.AWS_ACCESS_KEY),
-  // awsSecretKey: String(process.env.AWS_SECRET_KEY),
-  // awsS3Bucket: String(process.env.AWS_S3_BUCKET),
-  // awsS3Region: String(process.env.AWS_S3_REGION),
   rabbitmqHost: String(process.env.RABBITMQ_HOST),
+
+  awsSesHost: String(process.env.AWS_SES_HOST),
+  awsSesPort: Number(process.env.AWS_SES_PORT),
+  awsSesUsername: String(process.env.AWS_SES_USERNAME),
+  awsSesPassword: String(process.env.AWS_SES_PASSWORD),
+  awsSesSenderEmail: String(process.env.AWS_SES_SENDER_EMAIL),
 };

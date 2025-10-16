@@ -65,7 +65,8 @@ export async function listenToQueue({
           channel.ack(msg);
         } catch (err) {
           console.error("❌ Failed to process message:", err);
-          channel.nack(msg, false, true);
+          //   channel.nack(msg, false, true);
+          channel.nack(msg, false, false);
         }
       },
       { noAck: false }
