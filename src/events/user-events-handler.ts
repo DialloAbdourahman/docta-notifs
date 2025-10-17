@@ -27,5 +27,7 @@ export class UserEventsHandler {
       html,
       subject: "Activate your DOCTA account",
     });
+
+    console.log("Email sent successfully");
   };
 }

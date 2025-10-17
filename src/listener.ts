@@ -1,7 +1,7 @@
 import amqp from "amqplib";
 import { config } from "./config";
 import { UserEventsHandler } from "./events/user-events-handler";
-import { PatientCreatedEvent, RoutingKey } from "docta-package";
+import { logger, PatientCreatedEvent, RoutingKey } from "docta-package";
 
 interface ListenerOption {
   exchange: string;
@@ -17,19 +17,30 @@ export async function listenToQueue({
   try {
     const connection = await amqp.connect(config.rabbitmqHost);
     const channel = await connection.createChannel();
+    const dlq = `${queue}.dlq`;
 
+    // Exchange assertion
     await channel.assertExchange(exchange, "topic", { durable: true });
-    await channel.assertQueue(queue, { durable: true });
 
-    // Bind queue to each routing key
+    // Dead Letter Queue assertion
+    await channel.assertQueue(dlq, { durable: true });
+
+    // Main queue with DLQ routing
+    await channel.assertQueue(queue, {
+      durable: true,
+      arguments: {
+        "x-dead-letter-exchange": exchange,
+        "x-dead-letter-routing-key": `${queue}.dlq`,
+      },
+    });
+
+    // Bind queues
     for (const key of routingKeys) {
       await channel.bindQueue(queue, exchange, key);
-      console.log(`✅ Bound queue "${queue}" to routing key "${key}"`);
     }
+    await channel.bindQueue(dlq, exchange, `${queue}.dlq`);
 
-    console.log(
-      `🎧 Listening on "${queue}" for routing keys: [${routingKeys.join(", ")}]`
-    );
+    console.log(`🎧 Listening on "${queue}" for: [${routingKeys.join(", ")}]`);
 
     await channel.consume(
       queue,
@@ -42,7 +53,6 @@ export async function listenToQueue({
         try {
           const data = JSON.parse(content);
 
-          // Handle messages based on routing key
           switch (routingKey) {
             case RoutingKey.PATIENT_CREATED:
               await UserEventsHandler.patientCreatedHandler(
@@ -50,28 +60,42 @@ export async function listenToQueue({
               );
               break;
 
-            // case "user.updated":
-            //   console.log("✏️ User updated:", data);
-            //   break;
-
-            // case "user.deleted":
-            //   console.log("🗑️ User deleted:", data);
-            //   break;
-
             default:
               console.warn("⚠️ Unhandled routing key:", routingKey, data);
           }
 
           channel.ack(msg);
-        } catch (err) {
+        } catch (err: any) {
           console.error("❌ Failed to process message:", err);
-          //   channel.nack(msg, false, true);
-          channel.nack(msg, false, false);
+          logger.error("Unhandled error", {
+            message: err.message,
+            stack: err.stack,
+          });
+
+          // ✅ Use safe access with fallback
+          const headers = msg.properties?.headers ?? {};
+          const retryCount = (headers["x-retry-count"] as number) ?? 0;
+
+          if (retryCount < 3) {
+            console.log(`🔁 Retrying message (${retryCount + 1}/3)`);
+            channel.publish(exchange, msg.fields.routingKey, msg.content, {
+              headers: { "x-retry-count": retryCount + 1 },
+            });
+            channel.ack(msg);
+          } else {
+            console.log("💀 Moving message to DLQ after 3 failed attempts");
+            // Let RabbitMQ send it to DLQ automatically
+            channel.nack(msg, false, false);
+          }
         }
       },
       { noAck: false }
     );
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error setting up listener:", error);
+    logger.error("Unhandled error", {
+      message: error.message,
+      stack: error.stack,
+    });
   }
 }
