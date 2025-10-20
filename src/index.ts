@@ -26,7 +26,11 @@ const start = async () => {
     await listenToQueue({
       exchange: Exchanges.DOCTA_EXCHANGE,
       queue: Queues.NOTIFICATIONS_QUEUE,
-      routingKeys: [RoutingKey.PATIENT_CREATED],
+      routingKeys: [
+        RoutingKey.PATIENT_CREATED,
+        RoutingKey.DOCTOR_CREATED,
+        RoutingKey.FORGOT_PASSWORD,
+      ],
     });
 
     process.on("SIGINT", async () => {

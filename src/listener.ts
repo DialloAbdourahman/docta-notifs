@@ -1,7 +1,13 @@
 import amqp from "amqplib";
 import { config } from "./config";
 import { UserEventsHandler } from "./events/user-events-handler";
-import { logger, PatientCreatedEvent, RoutingKey } from "docta-package";
+import {
+  DoctorCreatedEvent,
+  ForgotPasswordEvent,
+  logger,
+  PatientCreatedEvent,
+  RoutingKey,
+} from "docta-package";
 
 interface ListenerOption {
   exchange: string;
@@ -57,6 +63,16 @@ export async function listenToQueue({
             case RoutingKey.PATIENT_CREATED:
               await UserEventsHandler.patientCreatedHandler(
                 data as PatientCreatedEvent
+              );
+              break;
+            case RoutingKey.DOCTOR_CREATED:
+              await UserEventsHandler.doctorCreatedHandler(
+                data as DoctorCreatedEvent
+              );
+              break;
+            case RoutingKey.FORGOT_PASSWORD:
+              await UserEventsHandler.forgotPasswordHandler(
+                data as ForgotPasswordEvent
               );
               break;
 
